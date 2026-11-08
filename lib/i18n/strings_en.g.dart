@@ -64,6 +64,17 @@ class Translations$common$en {
 
 	/// en: 'Cancel'
 	String get cancel => 'Cancel';
+
+	/// en: 'Could not access the file. Please try again.'
+	String get fileAccessError => 'Could not access the file. Please try again.';
+
+	/// en: 'Please select a supported image file, such as PNG, JPEG, or SVG.'
+	String get invalidImageFormat => 'Please select a supported image file, such as PNG, JPEG, or SVG.';
+
+	/// en: 'Please select a PDF file.'
+	String get invalidPdfFormat => 'Please select a PDF file.';
+
+	late final Translations$common$exportDestination$en exportDestination = Translations$common$exportDestination$en.internal(_root);
 }
 
 // Path: home
@@ -325,6 +336,30 @@ class Translations$editor$en {
 
 	/// en: 'Saving your changes… You can safely exit the editor when it's done'
 	String get needsToSaveBeforeExiting => 'Saving your changes… You can safely exit the editor when it\'s done';
+}
+
+// Path: common.exportDestination
+class Translations$common$exportDestination$en {
+	Translations$common$exportDestination$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Export to'
+	String get title => 'Export to';
+
+	/// en: 'Save to files'
+	String get saveToFiles => 'Save to files';
+
+	/// en: 'Share'
+	String get share => 'Share';
+
+	/// en: 'Save to gallery'
+	String get saveToGallery => 'Save to gallery';
+
+	/// en: 'Could not save the file. Please try again.'
+	String get saveFailed => 'Could not save the file. Please try again.';
 }
 
 // Path: home.tabs

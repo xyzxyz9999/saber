@@ -1,9 +1,10 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:go_router/go_router.dart';
+import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/navbar/bottom_navbar.dart';
 import 'package:saber/components/theming/saber_theme.dart';
+import 'package:saber/data/file_manager/document_file_picker.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/i18n/strings.g.dart';
@@ -79,46 +80,55 @@ class _NewNoteButtonState extends State<NewNoteButton> {
           child: const Icon(Icons.note_add),
           label: t.home.create.importNote,
           onTap: () async {
-            final file = await FilePicker.pickFile(type: FileType.any);
-            if (file == null) return;
+            try {
+              final file = await DocumentFilePicker.pickNote();
+              if (file == null) return;
 
-            final filePath = file.path;
-            final fileName = file.name;
-            if (filePath == null) return;
+              final filePath = DocumentFilePicker.localPath(file);
+              final fileName = file.name;
+              final extension = '.${file.extension!.toLowerCase()}';
 
-            if (filePath.toLowerCase().endsWith('.sbn') ||
-                filePath.toLowerCase().endsWith('.sbn2') ||
-                filePath.toLowerCase().endsWith('.sba')) {
-              final path = await FileManager.importFile(
-                filePath,
-                '${widget.path ?? ''}/',
-              );
-              if (path == null) return;
-              if (!context.mounted) return;
+              if (extension == '.sbn' ||
+                  extension == '.sbn2' ||
+                  extension == '.sba') {
+                final path = await FileManager.importFile(
+                  filePath,
+                  '${widget.path ?? ''}/',
+                  extension: extension,
+                );
+                if (path == null) return;
+                if (!context.mounted) return;
 
-              context.push(RoutePaths.editFilePath(path));
-            } else if (filePath.toLowerCase().endsWith('.pdf')) {
-              if (!Editor.canRasterPdf) return;
-              if (!mounted) return;
+                context.push(RoutePaths.editFilePath(path));
+              } else if (extension == '.pdf') {
+                if (!Editor.canRasterPdf) return;
+                if (!mounted) return;
 
-              final fileNameWithoutExtension = fileName.substring(
-                0,
-                fileName.length - '.pdf'.length,
-              );
-              final sbnFilePath =
-                  await FileManager.suffixFilePathToMakeItUnique(
-                    '${widget.path ?? ''}/$fileNameWithoutExtension',
-                  );
-              if (!context.mounted) return;
+                final fileNameWithoutExtension = fileName.substring(
+                  0,
+                  fileName.length - '.pdf'.length,
+                );
+                final sbnFilePath =
+                    await FileManager.suffixFilePathToMakeItUnique(
+                      '${widget.path ?? ''}/$fileNameWithoutExtension',
+                    );
+                if (!context.mounted) return;
 
-              context.push(RoutePaths.editImportPdf(sbnFilePath, filePath));
-            } else {
-              if (context.mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(t.home.invalidFormat)));
+                context.push(RoutePaths.editImportPdf(sbnFilePath, filePath));
               }
-              throw 'Invalid file type';
+            } catch (error, stackTrace) {
+              Logger('NewNoteButton')
+                  .warning('Failed to import file', error, stackTrace);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    error is FormatException
+                        ? t.home.invalidFormat
+                        : t.common.fileAccessError,
+                  ),
+                ),
+              );
             }
           },
         ),

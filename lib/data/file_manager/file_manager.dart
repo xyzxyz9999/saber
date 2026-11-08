@@ -6,13 +6,15 @@ import 'package:collection/collection.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:logging/logging.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:saber/components/files/export_destination_dialog.dart';
 import 'package:saber/components/home/sort_button.dart';
+import 'package:saber/data/file_manager/document_file_picker.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/strings.g.dart';
@@ -290,6 +292,31 @@ class FileManager {
     bool isImage = false,
     required BuildContext context,
   }) async {
+    if (Platform.isAndroid) {
+      if (!context.mounted) return;
+      // Image exports can outlive the options dialog that started them.
+      final messenger = ScaffoldMessenger.of(context);
+      final destination = await ExportDestinationDialog.show(
+        context,
+        isImage: isImage,
+      );
+      if (destination == null) return;
+      if (destination == ExportDestination.files) {
+        try {
+          // A null URI means the user cancelled the system save dialog.
+          await DocumentFilePicker.saveFile(fileName, bytes);
+        } catch (error, stackTrace) {
+          log.severe('Failed to save exported file', error, stackTrace);
+          if (messenger.mounted) {
+            messenger.showSnackBar(
+              SnackBar(content: Text(t.common.exportDestination.saveFailed)),
+            );
+          }
+        }
+        return;
+      }
+    }
+
     File? tempFile;
     Future<File> getTempFile() async {
       final tempFolder = (await getTemporaryDirectory()).path;

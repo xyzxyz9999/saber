@@ -5,7 +5,6 @@ import 'dart:typed_data';
 
 import 'package:collapsible/collapsible.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +22,7 @@ import 'package:saber/components/canvas/canvas_image.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
 import 'package:saber/components/editor/read_only_banner.dart';
+import 'package:saber/components/files/file_import_error_dialog.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
@@ -37,6 +37,7 @@ import 'package:saber/data/editor/editor_history.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
+import 'package:saber/data/file_manager/document_file_picker.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
@@ -1236,38 +1237,20 @@ class EditorState extends State<Editor> {
   }
 
   Future<List<_PhotoInfo>> _pickPhotosWithFilePicker() async {
-    final List<PlatformFile> files = await FilePicker.pickFiles(
-      type: FileType.custom,
-      // Taken from
-      // https://github.com/brendan-duncan/image/blob/main/doc/formats.md
-      // (plus .svg)
-      allowedExtensions: [
-        'jpg',
-        'jpeg',
-        'png',
-        'gif',
-        'tiff',
-        'bmp',
-        'tga',
-        'ico',
-        'pvrtc',
-        'svg',
-        'webp',
-        'psd',
-        'exr',
-      ],
-    );
-    if (files.isEmpty) return const [];
-
-    return Future.wait([
-      for (final file in files)
-        () async {
-          final extension = p.extension(file.path ?? file.name);
-          if (extension.isEmpty) return null;
-          final bytes = await file.readAsBytes();
-          return _PhotoInfo(bytes, extension);
-        }(),
-    ]).then((list) => list.nonNulls.toList());
+    try {
+      final files = await DocumentFilePicker.pickImages();
+      return await Future.wait([
+        for (final file in files)
+          () async {
+            final extension = p.extension(file.name).toLowerCase();
+            final bytes = await file.readAsBytes();
+            return _PhotoInfo(bytes, extension);
+          }(),
+      ]);
+    } catch (error, stackTrace) {
+      await _showFileAccessError(error, stackTrace, FileImportKind.images);
+      return const [];
+    }
   }
 
   /// Prompts the user to pick a PDF to import.
@@ -1276,13 +1259,24 @@ class EditorState extends State<Editor> {
     if (coreInfo.readOnly) return false;
     if (!Editor.canRasterPdf) return false;
 
-    final file = await FilePicker.pickFile(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-    );
-    if (file == null) return false;
+    try {
+      final file = await DocumentFilePicker.pickPdf();
+      if (file == null) return false;
+      return await importPdfFromFilePath(DocumentFilePicker.localPath(file));
+    } catch (error, stackTrace) {
+      await _showFileAccessError(error, stackTrace, FileImportKind.pdf);
+      return false;
+    }
+  }
 
-    return importPdfFromFilePath(file.path!);
+  Future<void> _showFileAccessError(
+    Object error,
+    StackTrace stackTrace,
+    FileImportKind kind,
+  ) async {
+    log.warning('Failed to import file', error, stackTrace);
+    if (!mounted) return;
+    await FileImportErrorDialog.show(context, error: error, kind: kind);
   }
 
   Future<bool> importPdfFromFilePath(String path) async {

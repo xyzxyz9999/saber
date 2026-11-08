@@ -2,6 +2,15 @@ common:
   done: Done
   continueBtn: Continue
   cancel: Cancel
+  fileAccessError: Could not access the file. Please try again.
+  invalidImageFormat: Please select a supported image file, such as PNG, JPEG, or SVG.
+  invalidPdfFormat: Please select a PDF file.
+  exportDestination:
+    title: Export to
+    saveToFiles: Save to files
+    share: Share
+    saveToGallery: Save to gallery
+    saveFailed: Could not save the file. Please try again.
 home:
   tabs:
     home: Home
